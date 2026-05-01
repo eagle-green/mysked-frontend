@@ -143,7 +143,7 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        {/* <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
           <InputLabel htmlFor="filter-type-select">Vehicles</InputLabel>
           <Select
             multiple
@@ -172,9 +172,9 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
+        </FormControl> */}
 
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        {/* <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
           <InputLabel htmlFor="filter-type-select">Type</InputLabel>
           <Select
             multiple
@@ -200,10 +200,10 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
+        </FormControl> */}
 
         <DatePicker
-          label="Created From"
+          label="Submitted Start Date"
           value={currentFilters.startDate}
           onChange={(newValue) => handleFilters('startDate', newValue)}
           slotProps={{ textField: { fullWidth: true } }}
@@ -211,7 +211,7 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
         />
 
         <DatePicker
-          label="Created To"
+          label="Submitted End Date"
           value={currentFilters.endDate}
           onChange={(newValue) => handleFilters('endDate', newValue)}
           slotProps={{
@@ -262,7 +262,7 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
             flexDirection: 'column',
           }}
         >
-          <FormControl sx={{ width: 1 }}>
+          {/* <FormControl sx={{ width: 1 }}>
             <InputLabel htmlFor="filter-type-select">Vehicles</InputLabel>
             <Select
               multiple
@@ -321,10 +321,10 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
                 </MenuItem>
               ))}
             </Select>
-          </FormControl>
+          </FormControl> */}
 
           <DatePicker
-            label="Start date"
+            label="Submitted Start date"
             value={currentFilters.startDate}
             onChange={(newValue) => handleFilters('startDate', newValue)}
             slotProps={{ textField: { fullWidth: true } }}
@@ -332,7 +332,7 @@ function PreTripTableToolbarComponent({ filters, onResetPage, options, dateError
           />
 
           <DatePicker
-            label="End date"
+            label="Submitted End date"
             value={currentFilters.endDate}
             onChange={(newValue) => handleFilters('endDate', newValue)}
             slotProps={{

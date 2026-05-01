@@ -110,7 +110,7 @@ export function AdminPreTripVehicleFilterResult({
         ))}
       </FiltersBlock>
 
-      <FiltersBlock label="Drvier:" isShow={!!currentFilters.vehicles.length}>
+      <FiltersBlock label="Vehicle:" isShow={!!currentFilters.vehicles.length}>
         {currentFilters.vehicles.map((driver: any) => (
           <Chip
             key={driver.value}

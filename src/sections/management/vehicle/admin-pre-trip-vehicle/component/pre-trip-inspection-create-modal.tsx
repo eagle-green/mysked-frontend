@@ -28,7 +28,6 @@ type Props = {
 
 const InspectionTypeSchema = zod.object({
   label: zod.string().min(1, { message: 'Label is required!' }),
-  field_name: zod.string().min(1, { message: 'Field Name is required!' }),
   description: zod.string().min(1, { message: 'Description is required!' }),
   is_required: zod.boolean(),
 });
@@ -45,7 +44,6 @@ export function PreTripInspectionFormDialog({
 
   const defaultValues: any = {
     label: '',
-    field_name: '',
     description: '',
     is_required: '',
   };
@@ -84,7 +82,7 @@ export function PreTripInspectionFormDialog({
         },
       }}
     >
-      <DialogTitle>{isEditMode ? 'Quick update' : 'Create new Inspection Type'}</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Quick update' : 'Create New Inspection Type'}</DialogTitle>
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
           <Box
@@ -97,8 +95,8 @@ export function PreTripInspectionFormDialog({
             }}
           >
             <Field.Text name="label" label="Inspection Type Label*" />
-            <Field.Text name="field_name" label="Inspection Type Field Name* " />
-            <Field.Text fullWidth multiline rows={4} name="description" label="Description" />
+            {/* <Field.Text name="field_name" label="Inspection Type Field Name* " /> */}
+            <Field.Text fullWidth multiline rows={4} name="description" label="Description*" />
             <Stack>
               <Controller
                 name="is_required"
@@ -113,7 +111,7 @@ export function PreTripInspectionFormDialog({
                         color="primary"
                       />
                     }
-                    label={isRequired ? 'Required' : 'Optional'}
+                    label="Required"
                   />
                 )}
               />

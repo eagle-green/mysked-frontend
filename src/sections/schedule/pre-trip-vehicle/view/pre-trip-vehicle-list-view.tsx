@@ -51,14 +51,13 @@ import { PreTripVehicleFilterResult } from '../pre-trip-vehicle-filter-result';
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #' },
+  { id: 'job_start_date', label: 'Job Start Date' },
+  { id: 'job_start_end', label: 'Job End Date' },
   { id: 'driver_name', label: 'Driver Name' },
   { id: 'vehicle', label: 'Vehicle' },
-  { id: 'open_defects', label: 'Open Defects' },
-  { id: 'resolve_defects', label: 'Resolve Defects' },
   { id: 'type', label: 'Type' },
   { id: 'status', label: 'Status' },
-  { id: 'created_at', label: 'Created Date' },
-  { id: 'submitted_at', label: 'Submitted Date' },
+  { id: 'submitted_by', label: 'Submitted By' },
   { id: '', width: 88 },
 ];
 
@@ -206,7 +205,7 @@ export function PreTripVehicleInspectionListView() {
             type: 'Pre-Trip',
             status: 'pending',
             created_at: dayjs().format('MM-DD-YYYY'),
-            submitted_at: null,
+            submitted_by: null,
           },
           {
             id: 2,
@@ -230,7 +229,7 @@ export function PreTripVehicleInspectionListView() {
             type: 'Pre-Trip',
             status: 'pending',
             created_at: dayjs().format('MM-DD-YYYY'),
-            submitted_at: null,
+            submitted_by: null,
           },
           {
             id: 3,
@@ -252,9 +251,14 @@ export function PreTripVehicleInspectionListView() {
             open_defects: 0,
             resolve_defects: 0,
             type: 'Pre-Trip',
-            status: 'pending',
+            status: 'submitted',
             created_at: dayjs().format('MM-DD-YYYY'),
-            submitted_at: null,
+            submitted_by: {
+              photo_url: null,
+              first_name: 'Jerwin',
+              last_name: 'Fortillano',
+              submitted_at: dayjs().format('MM-DD-YYYY'),
+            },
           },
         ],
       };

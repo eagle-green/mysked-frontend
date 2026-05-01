@@ -10,6 +10,8 @@ import { DashboardContent } from 'src/layouts/dashboard/content';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
+import { IVehiclePicture } from 'src/types/vehicle-picture';
+
 import { AdminPreTripVehicleDetailComponent } from '../component/pre-trip-vehicle-detail';
 
 //------------------------------------------------------------------
@@ -21,59 +23,32 @@ export function AdminPreTripVehicleDetailView() {
       label: 'Air brake System',
       is_required: false,
       has_defect: 'yes',
+      description: 'Pad thickness, rotor condition, and hydraulic pressure test',
       detect_issues: {
         detect_type: 'major',
-        notes: 'Test',
-        photo: undefined,
+        notes:
+          'During inspection of the air brake system, it was observed that the brake pad thickness is below the minimum allowable limit. The rotor surface shows signs of uneven wear and minor scoring. Additionally, the hydraulic pressure test indicates inconsistent pressure levels, suggesting possible leakage or internal system inefficiency',
+        photo:
+          '["https://res.cloudinary.com/djzqhekl3/image/upload/v1768615599/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/inside/inside_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615589_cqlmx5wqn.jpg", "https://res.cloudinary.com/djzqhekl3/image/upload/v1768615560/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/back/back_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615557_glp83y9tz.jpg", "https://res.cloudinary.com/djzqhekl3/image/upload/v1768615560/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/back/back_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615557_glp83y9tz.jpg", "https://res.cloudinary.com/djzqhekl3/image/upload/v1768615560/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/back/back_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615557_glp83y9tz.jpg"]',
       },
     },
     {
       field_name: 'cab',
       label: 'Cab',
       is_required: true,
-      has_defect: '',
+      has_defect: 'yes',
+      description: 'Cab Interior – Safety and Control Components Inspection',
       detect_issues: {
-        detect_type: '',
-        notes: '',
-        photo: undefined,
+        detect_type: 'minor',
+        notes:
+          'During cab inspection, multiple defects were identified affecting driver safety and operational readiness. Issues include worn or non-functional seat belts, malfunctioning dashboard indicators, and poor visibility due to damaged or dirty windshield components',
+        photo:
+          '["https://res.cloudinary.com/djzqhekl3/image/upload/v1768615560/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/back/back_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615557_glp83y9tz.jpg"]',
       },
     },
     {
       field_name: 'cargo_securement',
       label: 'Cargo Securement',
-      is_required: true,
-      has_defect: '',
-      detect_issues: {
-        detect_type: '',
-        notes: '',
-        photo: undefined,
-      },
-    },
-    {
-      field_name: 'steering',
-      label: 'Steering',
-      is_required: true,
-      has_defect: '',
-      detect_issues: {
-        detect_type: '',
-        notes: '',
-        photo: undefined,
-      },
-    },
-    {
-      field_name: 'suspension_system',
-      label: 'Suspension System',
-      is_required: true,
-      has_defect: '',
-      detect_issues: {
-        detect_type: '',
-        notes: '',
-        photo: undefined,
-      },
-    },
-    {
-      field_name: 'tires',
-      label: 'Tires',
       is_required: true,
       has_defect: '',
       detect_issues: {
@@ -126,10 +101,46 @@ export function AdminPreTripVehicleDetailView() {
     open_defects: 0,
     resolve_defects: 0,
     type: 'Pre-Trip',
-    status: 'pending',
-    created_at: dayjs().format('MM-DD-YYYY'),
-    submitted_at: '',
     inspections: INSPECTION_DATA,
+    status: 'pending',
+    pictures: [
+      {
+        id: '534699c4-ff82-4b5f-8a54-57450469ff49',
+        vehicle_id: '8ca76ec4-dd35-4c90-8401-a906ded935bd',
+        section: 'inside',
+        note: '',
+        url: 'https://res.cloudinary.com/djzqhekl3/image/upload/v1768615599/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/inside/inside_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615589_cqlmx5wqn.jpg',
+        uploaded_at: '2026-01-17T02:06:40.233Z',
+        uploaded_by: {
+          id: 'a980a0ab-d625-4e28-95be-afa0bc0d96aa',
+          first_name: 'Mohsin',
+          last_name: 'Ali',
+          photo_url:
+            'https://res.cloudinary.com/djzqhekl3/image/upload/v1761021382/users/a980a0ab-d625-4e28-95be-afa0bc0d96aa/profile_a980a0ab-d625-4e28-95be-afa0bc0d96aa.jpg',
+        },
+        file_name: 'image.jpg',
+        file_size: 2665876,
+        mime_type: 'image/jpeg',
+      },
+      {
+        id: '534699c4-ff82-4b5f-8a54-57450469ff49',
+        vehicle_id: '8ca76ec4-dd35-4c90-8401-a906ded935bd',
+        section: 'inside',
+        note: '',
+        url: 'https://res.cloudinary.com/djzqhekl3/image/upload/v1768615560/vehicles/8ca76ec4-dd35-4c90-8401-a906ded935bd/back/back_8ca76ec4-dd35-4c90-8401-a906ded935bd_1768615557_glp83y9tz.jpg',
+        uploaded_at: '2026-01-17T02:06:40.233Z',
+        uploaded_by: {
+          id: 'a980a0ab-d625-4e28-95be-afa0bc0d96aa',
+          first_name: 'Mohsin',
+          last_name: 'Ali',
+          photo_url:
+            'https://res.cloudinary.com/djzqhekl3/image/upload/v1761021382/users/a980a0ab-d625-4e28-95be-afa0bc0d96aa/profile_a980a0ab-d625-4e28-95be-afa0bc0d96aa.jpg',
+        },
+        file_name: 'image.jpg',
+        file_size: 2665876,
+        mime_type: 'image/jpeg',
+      },
+    ] as IVehiclePicture[],
   };
 
   return (
@@ -156,7 +167,11 @@ export function AdminPreTripVehicleDetailView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
-        <AdminPreTripVehicleDetailComponent data={data} inspections={data.inspections} />
+        <AdminPreTripVehicleDetailComponent
+          data={data}
+          inspections={data.inspections}
+          pictures={data.pictures}
+        />
       </DashboardContent>
     </>
   );

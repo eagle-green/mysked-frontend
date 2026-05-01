@@ -43,48 +43,6 @@ export function AdminPreTripVehicleListView() {
       is_required: true,
       field_name: 'cabin_controls',
     },
-    {
-      id: 1,
-      label: 'Engine Diagnostic',
-      description: 'Detaild check of fluid levels, belt tension, and error codes',
-      is_required: true,
-      field_name: 'engine_diagnostic',
-    },
-    {
-      id: 2,
-      label: 'Cabin & Controls',
-      description: 'Setbelt integrity, dashboard indicators, and AC functionality',
-      is_required: false,
-      field_name: 'cabin_controls',
-    },
-    {
-      id: 3,
-      label: 'Breaking System',
-      description: 'Pad thickness, rotor condition, and hydraulic pressure test',
-      is_required: true,
-      field_name: 'cabin_controls',
-    },
-    {
-      id: 1,
-      label: 'Engine Diagnostic',
-      description: 'Detaild check of fluid levels, belt tension, and error codes',
-      is_required: true,
-      field_name: 'engine_diagnostic',
-    },
-    {
-      id: 2,
-      label: 'Cabin & Controls',
-      description: 'Setbelt integrity, dashboard indicators, and AC functionality',
-      is_required: false,
-      field_name: 'cabin_controls',
-    },
-    {
-      id: 3,
-      label: 'Breaking System',
-      description: 'Pad thickness, rotor condition, and hydraulic pressure test',
-      is_required: true,
-      field_name: 'cabin_controls',
-    },
   ];
 
   const [selectedInspection, setSelectedInspection] = useState(null);

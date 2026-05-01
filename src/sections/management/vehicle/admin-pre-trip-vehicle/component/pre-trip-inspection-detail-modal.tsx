@@ -24,18 +24,10 @@ type Props = {
 };
 export function AdminDefectModal({ open, openIndex, onClose }: Props) {
   const [inspectionImages, setInspectionImages] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const { setValue, watch } = useFormContext();
+  const { setValue, watch, getValues } = useFormContext();
 
   const inspection = watch(`inspections.${openIndex}`);
   const inspection_image = watch(`inspections.${openIndex}.detect_issues.photo`);
-
-  const DETECT_TYPES = [
-    { label: 'Major', value: 'major' },
-    { label: 'Minor', value: 'minor' },
-    { label: 'Not Sure', value: 'not_sure' },
-  ];
 
   // Load existing diagram data when component mounts or flraDiagram changes
   useEffect(() => {
@@ -106,119 +98,41 @@ export function AdminDefectModal({ open, openIndex, onClose }: Props) {
 
   if (!open || openIndex === null) return null;
 
-  // Helper function to compress and resize images for better mobile compatibility
-  const compressImage = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = reject;
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onerror = reject;
-        img.onload = () => {
-          // Create canvas for compression
-          const canvas = document.createElement('canvas');
-          let { width, height } = img;
-
-          // Resize if too large (max 1920px on longest side)
-          const maxSize = 1920;
-          if (width > maxSize || height > maxSize) {
-            if (width > height) {
-              height = (height / width) * maxSize;
-              width = maxSize;
-            } else {
-              width = (width / height) * maxSize;
-              height = maxSize;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Failed to get canvas context'));
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to JPEG with 85% quality for good balance
-          const compressed = canvas.toDataURL('image/jpeg', 0.85);
-          resolve(compressed);
-        };
-        img.src = e.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-      const newImages: string[] = [];
-
-      try {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-
-          try {
-            const compressed = await compressImage(file);
-            newImages.push(compressed);
-          } catch (error) {
-            console.error(`Error processing file ${file.name}:`, error);
-          }
-        }
-
-        // Update state with all successfully processed images
-        const updatedImages = [...inspectionImages, ...newImages];
-        setInspectionImages(updatedImages);
-        setValue(`inspections.${openIndex}.detect_issues.photo`, JSON.stringify(updatedImages));
-      } catch (error) {
-        console.error('Error in file upload:', error);
-      }
-    }
-  };
-
-  const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      try {
-        const compressed = await compressImage(file);
-        const updatedImages = [...inspectionImages, compressed];
-        setInspectionImages(updatedImages);
-        setValue(`inspections.${openIndex}.detect_issues.photo`, JSON.stringify(updatedImages));
-      } catch (error) {
-        console.error('Error processing camera file:', error);
-      }
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const updatedImages = inspectionImages.filter((_, i) => i !== index);
-    setInspectionImages(updatedImages);
-    // Store as JSON array string, or null if empty
-    setValue(
-      `inspections.${openIndex}.detect_issues.photo`,
-      updatedImages.length > 0 ? JSON.stringify(updatedImages) : null
-    );
-
-    // Clear file inputs
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
-  };
-
-  const handleRemoveAll = () => {
-    setInspectionImages([]);
-    setValue(`inspections.${openIndex}.detect_issues.photo`, null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
-  };
+  const inspections = getValues('inspections');
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 3 }}>
         <Typography variant="subtitle1">{inspection?.label}</Typography>
+
         {/* DETECT TYPE */}
-        <Field.Select
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.disabled">
+            {inspections[openIndex]?.description}
+          </Typography>
+        </Stack>
+
+        {/* DETECT TYPE */}
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.disabled">
+            Detect Type
+          </Typography>
+          <Typography variant="body2" textTransform="capitalize">
+            {inspections[openIndex]?.detect_issues?.detect_type}
+          </Typography>
+        </Stack>
+
+        {/* Notes */}
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.disabled">
+            Notes
+          </Typography>
+          <Typography variant="body2" textTransform="capitalize">
+            {inspections[openIndex]?.detect_issues?.notes}
+          </Typography>
+        </Stack>
+
+        {/* <Field.Select
           name={`inspections.${openIndex}.detect_issues.detect_type`}
           label="Detect Type"
           disabled
@@ -228,9 +142,9 @@ export function AdminDefectModal({ open, openIndex, onClose }: Props) {
               {role.label}
             </MenuItem>
           ))}
-        </Field.Select>
+        </Field.Select> */}
 
-        {/* NOTES */}
+        {/* NOTES
         <Field.Text
           fullWidth
           multiline
@@ -238,27 +152,22 @@ export function AdminDefectModal({ open, openIndex, onClose }: Props) {
           name={`inspections.${openIndex}.detect_issues.notes`}
           label="Notes"
           disabled
-        />
+        /> */}
 
         {/* PHOTO */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, mt: 1 }}>
-          {/* Images preview in grid */}
-          {inspectionImages.length > 0 && (
+        {inspectionImages.length > 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, mt: 1 }}>
             <Box>
-              <Stack
-                spacing={1}
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ p: 2 }}
-              >
-                <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                  Photos ({inspectionImages.length}):
-                </Typography>
-              </Stack>
               <Grid container spacing={2}>
                 {inspectionImages.map((image, index) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+                  <Grid
+                    size={{
+                      xs: 12,
+                      sm: 6,
+                      md: inspectionImages.length < 3 ? 12 / inspectionImages.length : 3,
+                    }}
+                    key={index}
+                  >
                     <Box
                       sx={{
                         position: 'relative',
@@ -284,58 +193,13 @@ export function AdminDefectModal({ open, openIndex, onClose }: Props) {
                           bgcolor: 'background.neutral',
                         }}
                       />
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          width: '100%',
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          Image {index + 1}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveImage(index)}
-                          sx={{ ml: 'auto' }}
-                        >
-                          <Iconify icon="solar:trash-bin-trash-bold" />
-                        </IconButton>
-                      </Box>
                     </Box>
                   </Grid>
                 ))}
               </Grid>
             </Box>
-          )}
-
-          {inspectionImages.length === 0 && (
-            <Box
-              sx={{
-                border: 2,
-                borderColor: 'divider',
-                borderStyle: 'dashed',
-                borderRadius: 1,
-                p: 4,
-                textAlign: 'center',
-                color: 'text.secondary',
-              }}
-            >
-              <Iconify
-                icon="solar:gallery-add-bold"
-                width={48}
-                height={48}
-                sx={{ mb: 2, opacity: 0.5 }}
-              />
-              <Typography variant="body2">
-                No photo added yet. Take photos or upload images to include in your inspection
-                details.
-              </Typography>
-            </Box>
-          )}
-        </Box>
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions>

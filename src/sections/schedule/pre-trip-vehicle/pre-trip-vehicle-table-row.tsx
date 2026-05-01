@@ -13,6 +13,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import ListItemText from '@mui/material/ListItemText';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components/router-link';
@@ -158,6 +159,38 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
       </TableCell>
 
       <TableCell>
+        <ListItemText
+          primary={fDate(row.job.job_start, 'MMM DD YYYY')}
+          secondary={fTime(row.job.job_start)}
+          slotProps={{
+            primary: {
+              noWrap: true,
+              sx: { typography: 'body2' },
+            },
+            secondary: {
+              sx: { mt: 0.5, typography: 'caption' },
+            },
+          }}
+        />
+      </TableCell>
+
+      <TableCell>
+        <ListItemText
+          primary={fDate(row.job.job_end, 'MMM DD YYYY')}
+          secondary={fTime(row.job.job_end)}
+          slotProps={{
+            primary: {
+              noWrap: true,
+              sx: { typography: 'body2' },
+            },
+            secondary: {
+              sx: { mt: 0.5, typography: 'caption' },
+            },
+          }}
+        />
+      </TableCell>
+
+      <TableCell>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar
             src={row?.driver?.photo_url ?? undefined}
@@ -168,9 +201,6 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
           </Avatar>
           <Box>
             <Typography variant="body2">{row?.driver?.displayName}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {row?.driver?.role}
-            </Typography>
           </Box>
         </Box>
       </TableCell>
@@ -194,14 +224,6 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
       </TableCell>
 
       <TableCell>
-        <Typography variant="body2">{row.open_defects}</Typography>
-      </TableCell>
-
-      <TableCell>
-        <Typography variant="body2">{row.resolve_defects}</Typography>
-      </TableCell>
-
-      <TableCell>
         <Typography variant="body2">
           {TIME_OFF_TYPES.find((t) => t.value === row.type)?.label || row.type}
         </Typography>
@@ -214,21 +236,40 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
       </TableCell>
 
       <TableCell>
-        {row.created_at ? (
-          <Box>
-            <Typography variant="body2">{fDate(row.created_at)}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {fTime(row.created_at)}
-            </Typography>
-          </Box>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            N/A
-          </Typography>
+        {row.submitted_by && (
+          <ListItemText
+            primary={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Avatar
+                  src={row.submitted_by.photo_url ?? undefined}
+                  alt={`${row.submitted_by.first_name} ${row.submitted_by.last_name}`}
+                  sx={{ width: 32, height: 32 }}
+                >
+                  {row.submitted_by.first_name?.charAt(0)?.toUpperCase()}
+                </Avatar>
+                <Typography variant="body2" noWrap>
+                  {`${row.submitted_by.first_name} ${row.submitted_by.last_name}`}
+                </Typography>
+              </Stack>
+            }
+            secondary={
+              row.submitted_by?.submitted_at
+                ? `${fDate(row.submitted_by?.submitted_at, 'MMM DD YYYY')} ${fTime(row.submitted_by?.submitted_at)}`
+                : undefined
+            }
+            slotProps={{
+              primary: {
+                sx: { typography: 'body2' },
+              },
+              secondary: {
+                sx: { mt: 0.5, typography: 'caption' },
+              },
+            }}
+          />
         )}
       </TableCell>
 
-      <TableCell>
+      {/* <TableCell>
         {row.submitted_at ? (
           <Box>
             <Typography variant="body2">{fDate(row.submitted_at)}</Typography>
@@ -241,7 +282,7 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
             N/A
           </Typography>
         )}
-      </TableCell>
+      </TableCell> */}
 
       <TableCell align="right">
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>

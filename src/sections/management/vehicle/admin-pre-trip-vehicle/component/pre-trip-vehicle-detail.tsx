@@ -6,13 +6,19 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { fDate, fTime } from 'src/utils/format-time';
 
@@ -22,6 +28,8 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
+
+import { IVehiclePicture } from 'src/types/vehicle-picture';
 
 import { AdminDefectModal } from './pre-trip-inspection-detail-modal';
 //---------------------------------------------------
@@ -39,6 +47,7 @@ type Props = {
       photo: string | undefined;
     };
   }>;
+  pictures: IVehiclePicture[];
 };
 
 type AvatarTextProps = {
@@ -129,7 +138,23 @@ export const TextWithAvatar = ({ content }: AvatarTextProps) => (
   </Box>
 );
 
-export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props) {
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+
+export function AdminPreTripVehicleDetailComponent({ data, inspections, pictures }: Props) {
+  const theme = useTheme();
+  const previewDialog = useBoolean();
+  const [previewPicture, setPreviewPicture] = useState<IVehiclePicture | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
+
   const methods = useForm<any>({
     mode: 'onChange',
     resolver: zodResolver(InspectionListSchema),
@@ -149,6 +174,22 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
   const inspectionList = watch('inspections');
 
   const updateRequest = useUpdateVehicleInspection();
+
+  const handleImagePreview = (vehiclePicture: IVehiclePicture) => {
+    setPreviewImageUrl(vehiclePicture.url);
+    // setPreviewPicture(vehiclePicture);
+    previewDialog.onTrue();
+  };
+
+  const [imageIndex, setImageIndex] = useState(0);
+
+  const handlePrev = () => {
+    setImageIndex((prev) => (prev === 0 ? pictures.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setImageIndex((prev) => (prev === pictures.length - 1 ? 0 : prev + 1));
+  };
 
   return (
     <>
@@ -192,10 +233,13 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
               >
                 <Typography variant="body1">{data?.driver?.displayName}</Typography>
                 <Stack spacing={2} direction="row">
-                  <Label variant="soft" color="primary">
+                  <Label
+                    variant="soft"
+                    color={data?.vehicle?.status?.toLowerCase() == 'active' ? 'success' : 'error'}
+                  >
                     {data?.driver?.status}
                   </Label>
-                  <Label variant="soft" color="default">
+                  <Label variant="soft" color="secondary">
                     {data?.driver?.role}
                   </Label>
                 </Stack>
@@ -305,15 +349,19 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
                 </Typography>
                 <Stack spacing={1} direction="row" alignItems="center">
                   <Stack spacing={0.5} alignItems="start" justifyContent="start" direction="column">
-                    <Typography variant="body2">{fDate(data?.job?.job_start)}</Typography>
+                    <Typography variant="body2">
+                      {fDate(data?.job?.job_start, 'MMM DD YYYY')}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {fTime(data?.job?.job_start)}
+                      {fTime(data?.job?.job_start, 'MMM DD YYYY')}
                     </Typography>
                   </Stack>
                   <Stack spacing={0.5} alignItems="start" justifyContent="start" direction="column">
-                    <Typography variant="body2">{fDate(data?.job?.job_end)}</Typography>
+                    <Typography variant="body2">
+                      {fDate(data?.job?.job_end, 'MMM DD YYYY')}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {fTime(data?.job?.job_end)}
+                      {fTime(data?.job?.job_end, 'MMM DD YYYY')}
                     </Typography>
                   </Stack>
                 </Stack>
@@ -345,25 +393,58 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
           >
             <Stack spacing={2} direction="column" sx={{ p: 2 }}>
               <Typography variant="body1">Assigned Vehicle</Typography>
-              <Box
-                sx={{
-                  border: 2,
-                  borderColor: 'divider',
-                  borderStyle: 'dashed',
-                  borderRadius: 1,
-                  p: 4,
-                  textAlign: 'center',
-                  color: 'text.secondary',
-                }}
-              >
-                <Iconify
-                  icon="solar:gallery-circle-outline"
-                  width={48}
-                  height={48}
-                  sx={{ mb: 2, opacity: 0.5 }}
-                />
-                <Typography variant="body2">No image have been uploaded yet</Typography>
-              </Box>
+              {pictures.length && (
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: 200,
+                    margin: 'auto',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    mt: 1,
+                  }}
+                >
+                  <IconButton
+                    color="primary"
+                    onClick={() => {
+                      setPreviewPicture(pictures[imageIndex]);
+                      handlePrev();
+                    }}
+                  >
+                    <Iconify icon="eva:arrowhead-left-fill" />
+                  </IconButton>
+
+                  <Box
+                    component="img"
+                    src={pictures[imageIndex].url}
+                    alt={pictures[imageIndex].note || 'Vehicle picture'}
+                    onClick={() => handleImagePreview(pictures[imageIndex])}
+                    sx={{
+                      width: '100%',
+                      height: 200,
+                      objectFit: 'contain',
+                      borderRadius: 1,
+                      mb: 2,
+                      cursor: 'pointer',
+                      backgroundColor: 'transparent',
+                      '&:hover': {
+                        opacity: 0.8,
+                      },
+                    }}
+                  />
+
+                  <IconButton
+                    color="primary"
+                    onClick={() => {
+                      setPreviewPicture(pictures[imageIndex]);
+                      handleNext();
+                    }}
+                  >
+                    <Iconify icon="eva:arrowhead-right-fill" />
+                  </IconButton>
+                </Box>
+              )}
 
               <Box
                 sx={{
@@ -462,7 +543,7 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
                     direction={{ xs: 'column', md: 'row' }}
                     alignItems={{ xs: 'space-between', md: 'center' }}
                     sx={{ py: 1 }}
-                    gap={1}
+                    gap={2}
                   >
                     <Stack
                       direction="row"
@@ -474,13 +555,20 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
                         <Typography variant="body1">{item.label}</Typography>
                         <Typography variant="caption" color="text.disabled">
                           {!item.has_defect
-                            ? `Ongoing - ${fDate(dayjs().toISOString())}`
-                            : `Completed - ${fDate(dayjs().toISOString())}`}
+                            ? `Ongoing - ${fDate(dayjs().toISOString(), 'MMMM DD YYYY hh:mm')}`
+                            : `Completed - ${fDate(dayjs().toISOString(), 'MMMM DD YYYY hh:mm')}`}
                         </Typography>
                       </Stack>
 
-                      <Label
-                        variant="soft"
+                      <Chip
+                        label={
+                          !item?.has_defect
+                            ? 'Not Started'
+                            : item.has_defect?.toLowerCase() == 'yes'
+                              ? 'Defect Found'
+                              : 'No Defect Found'
+                        }
+                        size="medium"
                         color={
                           !item.has_defect
                             ? 'default'
@@ -488,17 +576,8 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
                               ? 'error'
                               : 'success'
                         }
-                        sx={{
-                          py: 2,
-                          px: 3,
-                        }}
-                      >
-                        {!item?.has_defect
-                          ? 'Not Started'
-                          : item.has_defect?.toLowerCase() == 'yes'
-                            ? 'Defect Found'
-                            : 'No Defect Found'}
-                      </Label>
+                        sx={{ height: 20, fontSize: 11, fontWeight: 700 }}
+                      />
                     </Stack>
 
                     <Stack direction="row" alignItems="center" spacing={2} sx={{ py: 1 }}>
@@ -509,6 +588,7 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
                           setOpenModalIndex(index);
                           modal.onTrue();
                         }}
+                        size="small"
                         disabled={item.has_defect?.toLowerCase() == 'no' || !item.has_defect}
                       >
                         View Details
@@ -531,6 +611,73 @@ export function AdminPreTripVehicleDetailComponent({ data, inspections }: Props)
           }}
         />
       </Form>
+      {/* /* Image Preview Dialog */}
+      <Dialog open={previewDialog.value} onClose={previewDialog.onFalse} fullWidth>
+        <DialogTitle>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Iconify icon="solar:gallery-add-bold" />
+            <Typography variant="h6">Image Preview</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            component="img"
+            src={previewImageUrl}
+            alt="Preview"
+            sx={{
+              width: '100%',
+              height: 'auto',
+              maxHeight: '50vh',
+              objectFit: 'contain',
+              borderRadius: 1,
+            }}
+          />
+
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.primary" sx={{ mb: 1, fontWeight: 500 }}>
+              {previewPicture?.file_name}
+            </Typography>
+
+            {previewPicture?.note && (
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                {previewPicture.note}
+              </Typography>
+            )}
+
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              {formatFileSize(previewPicture?.file_size || 0)}
+            </Typography>
+
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
+              <Typography variant="caption" color="text.secondary">
+                {dayjs(previewPicture?.uploaded_at)
+                  .tz('America/Los_Angeles')
+                  .format('MMM D, YYYY h:mm A')}
+              </Typography>
+            </Stack>
+
+            {previewPicture?.uploaded_by && (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Avatar
+                  src={previewPicture.uploaded_by.photo_url || undefined}
+                  alt={`${previewPicture.uploaded_by.first_name} ${previewPicture.uploaded_by.last_name}`}
+                  sx={{ width: 20, height: 20, fontSize: 10 }}
+                >
+                  {previewPicture.uploaded_by.first_name?.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography variant="caption" color="text.secondary">
+                  {previewPicture.uploaded_by.first_name} {previewPicture.uploaded_by.last_name}
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={previewDialog.onFalse}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      ;
     </>
   );
 }
