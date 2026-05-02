@@ -887,7 +887,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
       if (skippedClientEmail) {
         toast.success(
-          'Timesheet submitted successfully! The client was not sent a PDF by email.'
+          'Timesheet submitted successfully! The client was not sent a timesheet by email.'
         );
       } else {
         toast.success(response?.message ?? 'Timesheet submitted successfully.');
@@ -1262,7 +1262,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   <strong>{clientDisplayName}</strong> does not have a document email on file. You can
                   optionally enter an address to email the timesheet PDF and it will be saved on the client
                   profile for future timesheets and FLRAs. If you leave it blank, you can still submit, but
-                  the client will not receive a PDF by email.
+                  the client will not receive the copy of the timesheet by email.
                 </Typography>
                 <TextField
                   fullWidth

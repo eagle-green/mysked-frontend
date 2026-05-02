@@ -35,6 +35,7 @@ import DialogActions from '@mui/material/DialogActions';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import TableContainer from '@mui/material/TableContainer';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -248,6 +249,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const [updateDialogExtraEmails, setUpdateDialogExtraEmails] = useState<string[]>([]);
 
   const [clientSignature, setClientSignature] = useState<string | null>(null);
+  const [skipClientSignature, setSkipClientSignature] = useState(false);
+  const [submitDialogSigError, setSubmitDialogSigError] = useState(false);
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
   const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -435,6 +438,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       setSubmitDialogExtraEmails([]);
     } else {
       noClientEmailConfirmDialog.onFalse();
+      setSkipClientSignature(false);
+      setSubmitDialogSigError(false);
     }
   }, [submitDialog.value, noClientEmailConfirmDialog]);
 
@@ -663,12 +668,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     }));
   }, []);
 
-  // Check if all workers are confirmed
-  const allWorkersConfirmed = useMemo(
-    () =>
-      acceptedEntries.length > 0 && acceptedEntries.every((entry) => workerConfirmations[entry.id]),
-    [acceptedEntries, workerConfirmations]
-  );
 
   // Save all worker entries
   const saveAllEntries = useCallback(async () => {
@@ -937,7 +936,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
       if (skippedClientEmail) {
         toast.success(
-          'Timesheet submitted successfully! The client was not sent a PDF by email.'
+          'Timesheet submitted successfully! The client was not sent a timesheet by email.'
         );
       } else {
         toast.success(response?.message ?? 'Timesheet submitted successfully.');
@@ -1031,22 +1030,30 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   ]);
 
   const handleSubmitTimesheet = useCallback(async () => {
-    if (!allWorkersConfirmed) {
-      toast.error('Please confirm all workers before submitting');
-      return;
+    let hasError = false;
+
+    const confirmationsValid = validateConfirmations();
+    if (!confirmationsValid) {
+      hasError = true;
+      setTimeout(() => {
+        document.querySelector('[data-confirmation-error]')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 50);
     }
 
     if ((timesheet.job as any).cancelled_at && !cancellationNote?.trim()) {
       setCancellationNoteError('Cancellation note is required for cancelled jobs');
-      toast.error('Cancellation note is required for cancelled jobs');
-      return;
+      hasError = true;
     }
 
-    if (!(timesheet.job as any).cancelled_at && !clientSignature) {
-      toast.error('Client signature is required');
-      signatureDialog.onTrue();
-      return;
+    if (!(timesheet.job as any).cancelled_at && !clientSignature && !skipClientSignature) {
+      setSubmitDialogSigError(true);
+      hasError = true;
     }
+
+    if (hasError) return;
 
     setCancellationNoteError('');
 
@@ -1095,13 +1102,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
     await executeTimesheetSubmit();
   }, [
-    allWorkersConfirmed,
+    validateConfirmations,
     clientSignature,
+    skipClientSignature,
     cancellationNote,
     equipmentLeftAnswer,
     currentEquipmentLeft,
     timesheet.job,
-    signatureDialog,
     submitDialogExtraEmails,
     clientEmailDraftSubmit,
     executeTimesheetSubmit,
@@ -1470,7 +1477,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   <strong>{clientDisplayName}</strong> does not have a document email on file. You can
                   optionally enter an address to email the timesheet PDF and it will be saved on the client
                   profile for future timesheets and FLRAs. If you leave it blank, you can still submit, but
-                  the client will not receive a PDF by email.
+                  the client will not receive a copy of the timesheet by email.
                 </Typography>
                 <TextField
                   fullWidth
@@ -1606,6 +1613,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                       </Box>
                       {confirmationErrors[entry.id] && (
                         <Typography
+                          data-confirmation-error
                           variant="caption"
                           color="error.main"
                           sx={{
@@ -1790,6 +1798,63 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           </Card>
         )}
       </DialogContent>
+
+      {/* Skip client signature option */}
+      {!(timesheet.job as any).cancelled_at && !clientSignature && (
+        <Box sx={{ px: { xs: 2, sm: 3 }, pb: 0, pt: 1 }}>
+          {submitDialogSigError && !skipClientSignature && (
+            <Box
+              sx={{
+                mb: 1,
+                p: 1.5,
+                bgcolor: 'error.lighter',
+                border: '1px solid',
+                borderColor: 'error.main',
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="caption" color="error.dark">
+                Client signature is required. Add a signature above, or check the box below if the client is not available.
+              </Typography>
+            </Box>
+          )}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={skipClientSignature}
+                onChange={(e) => {
+                  setSkipClientSignature(e.target.checked);
+                  if (e.target.checked) setSubmitDialogSigError(false);
+                }}
+                color="warning"
+                size="small"
+              />
+            }
+            label={
+              <Typography variant="body2" color="text.secondary">
+                Client not available - submit without signature
+              </Typography>
+            }
+          />
+          {skipClientSignature && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 1.5,
+                bgcolor: 'warning.lighter',
+                border: '1px solid',
+                borderColor: 'warning.main',
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="caption" color="warning.darker">
+                No client signature will be attached to this submission.
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      )}
+
       <DialogActions
         sx={{
           flexDirection: { xs: 'column', sm: 'row' },
@@ -1846,7 +1911,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           color="success"
           size="large"
           onClick={handleSubmitTimesheet}
-          disabled={(!(timesheet.job as any).cancelled_at && !clientSignature) || !allWorkersConfirmed}
           fullWidth
           startIcon={<Iconify icon="solar:check-circle-bold" />}
           sx={{
