@@ -1673,10 +1673,10 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
         toast.success(
           shouldSubmit
             ? skippedClientEmail
-              ? 'FLRA submitted successfully! The client was not sent a PDF by email.'
+              ? 'FLRA submitted successfully! The client was not sent a FLRA by email.'
               : 'FLRA submitted successfully!'
             : skippedClientEmail
-              ? 'FLRA updated successfully! The client was not sent a PDF by email.'
+              ? 'FLRA updated successfully! The client was not sent a FLRA by email.'
               : 'FLRA updated successfully!'
         );
 
@@ -1766,7 +1766,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 <strong>{clientDisplayName}</strong> does not have a document email on file. You can
                 optionally enter an address to email the FLRA PDF and it will be saved on the{' '}
                 {clientDisplayName} profile for future timesheets and FLRAs. If you leave it blank, the FLRA
-                will still be submitted, but the client will not receive a PDF by email.
+                will still be submitted, but the client will not receive a FLRA by email.
               </Typography>
               <TextField
                 fullWidth
